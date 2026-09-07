@@ -436,34 +436,34 @@
                 }).join('');
             };
 
-            actContainer.innerHTML = appState.actionGroups.map((group, gIdx) => `
-                <div class="bg-gray-50 border border-gray-200 rounded-lg p-3 md:p-4">
+actContainer.innerHTML = appState.actionGroups.map((group, gIdx) => `
+                <div class="bg-gray-50 border border-gray-200 rounded-lg p-3">
                     <div class="flex justify-between items-center mb-3">
                         <h3 class="text-sm font-bold text-gray-700">Column ${gIdx + 1}</h3>
                         <div class="flex gap-2">
-                            <button onclick="addAction(${gIdx})" class="text-xs bg-white border border-gray-300 hover:bg-gray-100 text-gray-700 py-1.5 px-3 rounded">+ Action</button>
-                            <button onclick="removeActionGroup(${gIdx})" class="text-xs text-red-500 hover:text-red-700 p-2"><svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg></button>
+                            <button onclick="addAction(${gIdx})" class="text-xs bg-white border border-gray-300 hover:bg-gray-100 text-gray-700 py-1 px-2 rounded">+ Action</button>
+                            <button onclick="removeActionGroup(${gIdx})" class="text-xs text-red-500 hover:text-red-700 p-1"><svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg></button>
                         </div>
                     </div>
-                    <div class="flex flex-col gap-3">
+                    <div class="flex flex-col gap-2">
                         ${group.map((action, aIdx) => `
-                            <div class="flex flex-col xl:flex-row gap-3 bg-white p-3 border border-gray-200 rounded items-start xl:items-center">
-                                <textarea placeholder="Action (e.g. mash)" oninput="updateAction(${gIdx}, ${aIdx}, 'text', this.value)" class="auto-resize flex-grow border border-gray-300 rounded px-2 py-2 text-sm focus:ring-2 focus:ring-green-400 focus:outline-none w-full xl:w-auto">${action.text}</textarea>
+                            <div class="flex flex-col md:flex-row gap-2 bg-white p-2 border border-gray-200 rounded items-start md:items-center">
+                                <textarea placeholder="Action (e.g. mash)" oninput="updateAction(${gIdx}, ${aIdx}, 'text', this.value)" class="auto-resize flex-grow border border-gray-300 rounded px-2 py-1 text-sm focus:ring-2 focus:ring-green-400 focus:outline-none w-full"></textarea>
                                 
-                                <div class="flex items-center justify-between xl:justify-start gap-2 w-full xl:w-auto">
-                                    <div class="flex items-center gap-2 flex-grow xl:flex-grow-0">
+                                <div class="flex flex-col md:flex-row items-start md:items-center gap-2 w-full md:w-auto mt-2 md:mt-0">
+                                    <div class="flex items-center gap-2">
                                         <span class="text-xs text-gray-500 w-8">From:</span>
-                                        <select onchange="updateAction(${gIdx}, ${aIdx}, 'start', this.value)" class="flex-grow xl:flex-grow-0 text-sm border border-gray-300 rounded py-1.5 px-2 max-w-full xl:max-w-[120px] truncate">
+                                        <select onchange="updateAction(${gIdx}, ${aIdx}, 'start', this.value)" class="text-xs border border-gray-300 rounded py-1 px-2 w-[140px] truncate">
                                             ${getIngOptions(action.start)}
                                         </select>
                                     </div>
-                                    <div class="flex items-center gap-2 flex-grow xl:flex-grow-0">
-                                        <span class="text-xs text-gray-500 w-6">To:</span>
-                                        <select onchange="updateAction(${gIdx}, ${aIdx}, 'end', this.value)" class="flex-grow xl:flex-grow-0 text-sm border border-gray-300 rounded py-1.5 px-2 max-w-full xl:max-w-[120px] truncate">
+                                    <div class="flex items-center gap-2">
+                                        <span class="text-xs text-gray-500 w-8">To:</span>
+                                        <select onchange="updateAction(${gIdx}, ${aIdx}, 'end', this.value)" class="text-xs border border-gray-300 rounded py-1 px-2 w-[140px] truncate">
                                             ${getIngOptions(action.end)}
                                         </select>
+                                        <button onclick="removeAction(${gIdx}, ${aIdx})" class="text-red-400 hover:text-red-600 p-1"><svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg></button>
                                     </div>
-                                    <button onclick="removeAction(${gIdx}, ${aIdx})" class="text-red-400 hover:text-red-600 p-2"><svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg></button>
                                 </div>
                             </div>
                         `).join('')}
@@ -472,7 +472,7 @@
                 </div>
             `).join('');
         }
-
+        
         // --- Tabs Logic ---
         
         // Mobile layout tabs
