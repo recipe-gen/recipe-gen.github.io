@@ -1,0 +1,635 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Visual Recipe Formatter</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f3f4f6;
+        }
+
+        .recipe-card {
+            background-color: #fefee3;
+            border: 4px solid #a4cfa4;
+            border-radius: 12px;
+            padding: 16px;
+            width: max-content; /* Changed from max-width to allow inner content to dictate width */
+            min-width: 100%;    /* Ensure it fills at least the container */
+            margin: 0 auto;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .recipe-title {
+            font-weight: bold;
+            font-size: 1.25rem;
+            margin-bottom: 8px;
+            color: #333;
+        }
+
+        .recipe-servings {
+            font-weight: normal;
+            font-size: 1rem;
+            color: #555;
+        }
+
+        table.recipe-table {
+            width: 100%;
+            border-collapse: collapse;
+            border: 2px solid #5ca05c;
+            table-layout: auto; /* Allow cells to grow based on content */
+        }
+
+        table.recipe-table th, 
+        table.recipe-table td {
+            border: 1px solid #5ca05c;
+            padding: 8px 12px;
+            text-align: center;
+            vertical-align: middle;
+            font-size: 0.95rem;
+            color: #333;
+            min-width: 80px; /* Prevent cells from crushing too small on mobile */
+        }
+
+        table.recipe-table td:first-child {
+            text-align: left;
+            width: 25%;
+            min-width: 150px; /* Ensure ingredient names have space */
+            white-space: pre-wrap;
+        }
+
+        table.recipe-table tr.prep-step td {
+            background-color: transparent;
+            text-align: center;
+        }
+
+        .input-section {
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            padding: 20px;
+            margin-bottom: 16px;
+        }
+        
+        .tab-btn {
+            padding: 10px 16px;
+            font-weight: 600;
+            border-bottom: 2px solid transparent;
+            color: #6b7280;
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+        .tab-btn.active {
+            color: #16a34a;
+            border-bottom-color: #16a34a;
+        }
+        
+        textarea.auto-resize {
+            resize: vertical;
+            min-height: 42px;
+        }
+
+        /* Mobile specific tabs styles */
+        .mobile-tab-btn {
+            flex: 1;
+            text-align: center;
+            padding: 12px;
+            background-color: #e5e7eb;
+            color: #4b5563;
+            font-weight: bold;
+            border-radius: 8px 8px 0 0;
+            cursor: pointer;
+        }
+        .mobile-tab-btn.active {
+            background-color: white;
+            color: #16a34a;
+            border-bottom: 2px solid white; /* Hide container border */
+            z-index: 10;
+            position: relative;
+        }
+
+        @media print {
+            body { background-color: white; }
+            .recipe-card {
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+                box-shadow: none !important;
+                margin: 0 !important;
+                width: 100% !important; /* Reset for printing */
+                max-width: 100% !important;
+            }
+            .lg\:hidden { display: none !important; }
+            .lg\:flex { display: flex !important; }
+            .lg\:w-1\/2 { width: 100% !important; }
+            #editorContainer { display: none !important; }
+            #previewContainer { display: block !important; }
+        }
+    </style>
+</head>
+<body class="p-2 md:p-8 print:p-0">
+
+    <!-- Mobile Tabs (Visible only on small screens) -->
+    <div class="lg:hidden flex border-b border-gray-300 max-w-7xl mx-auto mb-[-1px] print:hidden">
+        <div id="mobileTabEdit" onclick="switchMobileTab('edit')" class="mobile-tab-btn active">Edit Recipe</div>
+        <div id="mobileTabPreview" onclick="switchMobileTab('preview')" class="mobile-tab-btn">View Preview</div>
+    </div>
+
+    <div class="max-w-7xl mx-auto flex flex-col lg:flex-row gap-8 bg-white lg:bg-transparent lg:p-0 p-4 rounded-b-lg lg:rounded-none border lg:border-none border-gray-300 print:block print:w-full print:m-0 print:border-none print:p-0">
+        
+        <!-- Left Side: Data Entry Form (Hidden on mobile when preview is active) -->
+        <div id="editorContainer" class="w-full lg:w-1/2 flex flex-col lg:h-[calc(100vh-4rem)] print:hidden">
+            <h1 class="text-2xl font-bold text-gray-800 mb-4 hidden lg:block">Recipe Builder</h1>
+            
+            <!-- Editor Tabs -->
+            <div class="flex border-b border-gray-200 mb-4">
+                <button id="tabVisual" onclick="switchTab('visual')" class="tab-btn active">Visual Builder</button>
+                <button id="tabAdvanced" onclick="switchTab('advanced')" class="tab-btn">Advanced (JSON)</button>
+            </div>
+
+            <div class="overflow-y-auto pr-2 flex-grow pb-12">
+                <!-- VISUAL BUILDER TAB -->
+                <div id="visualBuilderView" class="flex flex-col gap-4">
+                    
+                    <!-- 1. Basic Info -->
+                    <div class="input-section p-4 md:p-5">
+                        <h2 class="text-lg font-semibold text-gray-700 mb-3 border-b pb-2">1. Basic Info</h2>
+                        <div class="flex flex-col gap-3">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Recipe Title</label>
+                                <input type="text" id="vTitle" oninput="updateState('title', this.value)" class="w-full border border-gray-300 rounded px-3 py-2 focus:ring-2 focus:ring-green-400 focus:outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Servings Info</label>
+                                <input type="text" id="vServings" oninput="updateState('servings', this.value)" class="w-full border border-gray-300 rounded px-3 py-2 focus:ring-2 focus:ring-green-400 focus:outline-none">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 2. Global Prep Steps -->
+                    <div class="input-section p-4 md:p-5">
+                        <div class="flex justify-between items-center border-b pb-2 mb-3">
+                            <h2 class="text-lg font-semibold text-gray-700">2. Prep Steps</h2>
+                            <button onclick="addPrepStep()" class="text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold py-1.5 px-3 rounded">
+                                + Add Step
+                            </button>
+                        </div>
+                        <p class="text-xs text-gray-500 mb-2">These appear at the top, spanning all columns.</p>
+                        <div id="vPrepSteps" class="flex flex-col gap-2"></div>
+                    </div>
+
+                    <!-- 3. Ingredients -->
+                    <div class="input-section p-4 md:p-5">
+                        <div class="flex justify-between items-center border-b pb-2 mb-3">
+                            <h2 class="text-lg font-semibold text-gray-700">3. Ingredients</h2>
+                            <button onclick="addIngredient()" class="text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold py-1.5 px-3 rounded">
+                                + Add Ingredient
+                            </button>
+                        </div>
+                        <p class="text-xs text-gray-500 mb-2">Each ingredient creates a new row. Use Enter for new lines.</p>
+                        <div id="vIngredients" class="flex flex-col gap-2"></div>
+                    </div>
+
+                    <!-- 4. Action Groups -->
+                    <div class="input-section border-l-4 border-green-500 p-4 md:p-5">
+                        <div class="flex justify-between items-center border-b pb-2 mb-3">
+                            <h2 class="text-lg font-semibold text-gray-700">4. Action Pipeline (Columns)</h2>
+                            <button onclick="addActionGroup()" class="text-xs bg-green-100 hover:bg-green-200 text-green-800 font-semibold py-1.5 px-3 rounded">
+                                + Add Column
+                            </button>
+                        </div>
+                        <p class="text-xs text-gray-500 mb-4">
+                            Action groups are processed left-to-right as columns. Define which ingredients each action applies to.
+                        </p>
+                        <div id="vActionGroups" class="flex flex-col gap-6"></div>
+                    </div>
+
+                    <button onclick="loadDefaultData()" class="bg-gray-200 hover:bg-gray-300 text-gray-700 font-semibold py-3 px-4 rounded transition-colors text-sm shadow-sm mt-4 mb-8">
+                        Reset Default Data
+                    </button>
+                </div>
+
+                <!-- ADVANCED JSON TAB -->
+                <div id="advancedJsonView" class="hidden flex-col h-full gap-4">
+                    <div class="bg-yellow-50 border border-yellow-200 text-yellow-800 text-sm p-3 rounded">
+                        Edit the structured data directly. Invalid JSON will highlight the box in red.
+                    </div>
+                    <textarea id="jsonEditor" oninput="tryParseJson()" class="w-full flex-grow font-mono text-xs border border-gray-300 rounded p-3 focus:ring-2 focus:ring-green-400 focus:outline-none" spellcheck="false"></textarea>
+                    <div id="jsonError" class="text-red-500 text-xs mt-1 hidden font-semibold"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Side: Preview (Hidden on mobile when edit is active) -->
+        <div id="previewContainer" class="hidden lg:block w-full lg:w-1/2 print:w-full print:block">
+            <div class="bg-white lg:p-4 rounded-lg lg:shadow-sm lg:border lg:border-gray-200 lg:sticky lg:top-4 h-auto min-h-[calc(100vh-4rem)] flex flex-col print:border-none print:shadow-none print:p-0 print:block">
+                <div class="flex justify-between items-center mb-6 print:hidden">
+                    <h2 class="text-xl font-bold text-gray-800 hidden lg:block">Preview</h2>
+                    <h2 class="text-xl font-bold text-gray-800 lg:hidden">Recipe Preview</h2>
+                    <button onclick="window.print()" class="text-gray-500 hover:text-gray-800 p-2" title="Print/Save as PDF">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                        </svg>
+                    </button>
+                </div>
+
+                <!-- Overflow-x-auto allows the table to scroll horizontally on small screens -->
+                <div class="flex-grow w-full overflow-x-auto lg:p-4 lg:bg-gray-50 lg:rounded lg:border lg:border-gray-200 print:bg-transparent print:border-none print:p-0 print:overflow-visible print:block">
+                    <!-- Added a wrapper to ensure smooth scrolling behavior -->
+                    <div class="min-w-max pb-4 lg:pb-0"> 
+                        <div id="recipeOutput" class="recipe-card">
+                            <!-- Content generated by JS -->
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mt-4 text-xs text-gray-500 text-center print:hidden">
+                    Note: To save this format, you can take a screenshot or use the print button.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Global Application State based on a logical pipeline
+        let appState = {
+            title: "",
+            servings: "",
+            prepSteps: [],
+            ingredients: [],
+            actionGroups: []
+        };
+
+        const defaultData = {
+            title: "Gluten-Free Banana Nut Bread",
+            servings: "(about 10 servings)",
+            prepSteps: [
+                "Butter and flour a loaf pan",
+                "Preheat oven to 350°F (170°C)"
+            ],
+            ingredients: [
+                "2 large (250 g)\nripe bananas",
+                "6 Tbs. (90 mL)\nbutter",
+                "1 tsp. (5 mL)\nvanilla extract",
+                "2 large eggs",
+                "1-1/3 cups (167 g)\ngluten-free flour blend",
+                "2/3 cup (130 g)\nsugar",
+                "1/2 tsp. (2.3 g)\nbaking soda",
+                "1/4 tsp. (1.2 g)\nbaking powder",
+                "1/2 tsp. (3 g)\nsalt",
+                "1/2 cup (70 g)\nchopped walnuts"
+            ],
+            actionGroups: [
+                [
+                    { text: "mash", start: 0, end: 0 },
+                    { text: "melt", start: 1, end: 1 },
+                    { text: "lightly\nbeat", start: 3, end: 3 },
+                    { text: "whisk", start: 4, end: 9 }
+                ],
+                [
+                    { text: "mash\nuntil\nsmooth", start: 0, end: 2 }
+                ],
+                [
+                    { text: "fold", start: 0, end: 9 }
+                ],
+                [
+                    { text: "bake 350°F\n(170°C) 55\nmin.", start: 0, end: 9 }
+                ],
+                [
+                    { text: "cool 10\nmin. in\npan", start: 0, end: 9 }
+                ],
+                [
+                    { text: "cool\non\nwire\nrack", start: 0, end: 9 }
+                ]
+            ]
+        };
+
+        // --- Core Application Logic ---
+
+        function init() {
+            loadDefaultData();
+        }
+
+        function loadDefaultData() {
+            appState = JSON.parse(JSON.stringify(defaultData)); // Deep copy
+            updateAllViews();
+        }
+
+        function updateState(key, value) {
+            appState[key] = value;
+            renderPreview();
+        }
+
+        function updateAllViews() {
+            renderVisualBuilder();
+            document.getElementById('jsonEditor').value = JSON.stringify(appState, null, 4);
+            renderPreview();
+        }
+
+        // --- UI Interactions: Prep Steps ---
+        function addPrepStep() {
+            appState.prepSteps.push("New prep step");
+            updateAllViews();
+        }
+        function updatePrepStep(index, value) {
+            appState.prepSteps[index] = value;
+            renderPreview();
+        }
+        function removePrepStep(index) {
+            appState.prepSteps.splice(index, 1);
+            updateAllViews();
+        }
+
+        // --- UI Interactions: Ingredients ---
+        function addIngredient() {
+            appState.ingredients.push("New ingredient");
+            updateAllViews();
+        }
+        function updateIngredient(index, value) {
+            appState.ingredients[index] = value;
+            renderVisualBuilder(); // Need to re-render to update dropdowns in action groups
+            renderPreview();
+        }
+        function removeIngredient(index) {
+            appState.ingredients.splice(index, 1);
+            // Adjust action indices
+            appState.actionGroups.forEach(group => {
+                group.forEach(action => {
+                    if (action.start >= index && action.start > 0) action.start--;
+                    if (action.end >= index && action.end > 0) action.end--;
+                });
+            });
+            updateAllViews();
+        }
+
+        // --- UI Interactions: Action Groups ---
+        function addActionGroup() {
+            appState.actionGroups.push([]);
+            updateAllViews();
+        }
+        function removeActionGroup(index) {
+            appState.actionGroups.splice(index, 1);
+            updateAllViews();
+        }
+        function addAction(groupIndex) {
+            appState.actionGroups[groupIndex].push({ 
+                text: "New Action", 
+                start: 0, 
+                end: appState.ingredients.length > 0 ? appState.ingredients.length - 1 : 0 
+            });
+            updateAllViews();
+        }
+        function updateAction(groupIndex, actionIndex, field, value) {
+            if (field === 'start' || field === 'end') value = parseInt(value);
+            
+            appState.actionGroups[groupIndex][actionIndex][field] = value;
+            
+            // Enforce start <= end
+            const action = appState.actionGroups[groupIndex][actionIndex];
+            if (field === 'start' && action.start > action.end) action.end = action.start;
+            if (field === 'end' && action.end < action.start) action.start = action.end;
+            
+            if (field === 'start' || field === 'end') renderVisualBuilder(); // refresh dropdowns
+            renderPreview();
+        }
+        function removeAction(groupIndex, actionIndex) {
+            appState.actionGroups[groupIndex].splice(actionIndex, 1);
+            updateAllViews();
+        }
+
+        // --- Rendering Builders ---
+
+        function renderVisualBuilder() {
+            // Basic Info
+            document.getElementById('vTitle').value = appState.title;
+            document.getElementById('vServings').value = appState.servings;
+
+            // Prep Steps
+            const prepContainer = document.getElementById('vPrepSteps');
+            prepContainer.innerHTML = appState.prepSteps.map((step, i) => `
+                <div class="flex gap-2 items-center">
+                    <span class="text-xs text-gray-400 w-4">${i+1}.</span>
+                    <input type="text" value="${step.replace(/"/g, '&quot;')}" oninput="updatePrepStep(${i}, this.value)" class="flex-grow border border-gray-300 rounded px-2 py-2 text-sm focus:ring-2 focus:ring-green-400 focus:outline-none">
+                    <button onclick="removePrepStep(${i})" class="text-red-400 hover:text-red-600 p-2" title="Remove"><svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg></button>
+                </div>
+            `).join('');
+
+            // Ingredients
+            const ingContainer = document.getElementById('vIngredients');
+            ingContainer.innerHTML = appState.ingredients.map((ing, i) => `
+                <div class="flex gap-2 items-start bg-gray-50 p-2 md:p-3 border border-gray-100 rounded">
+                    <span class="text-xs font-bold text-gray-400 mt-2 w-6 text-center">${i+1}</span>
+                    <textarea onblur="updateIngredient(${i}, this.value)" class="auto-resize flex-grow border border-gray-300 rounded px-2 py-2 text-sm focus:ring-2 focus:ring-green-400 focus:outline-none">${ing.replace(/"/g, '&quot;')}</textarea>
+                    <button onclick="removeIngredient(${i})" class="text-red-400 hover:text-red-600 p-2 mt-1" title="Remove"><svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg></button>
+                </div>
+            `).join('');
+
+            // Action Groups
+            const actContainer = document.getElementById('vActionGroups');
+            
+            // Helper to generate options based on current ingredients
+            const getIngOptions = (selectedIdx) => {
+                return appState.ingredients.map((ing, i) => {
+                    const shortName = ing.split('\n')[0].substring(0, 25) + (ing.length > 25 ? '...' : '');
+                    return `<option value="${i}" ${i === selectedIdx ? 'selected' : ''}>${i+1}. ${shortName}</option>`;
+                }).join('');
+            };
+
+            actContainer.innerHTML = appState.actionGroups.map((group, gIdx) => `
+                <div class="bg-gray-50 border border-gray-200 rounded-lg p-3 md:p-4">
+                    <div class="flex justify-between items-center mb-3">
+                        <h3 class="text-sm font-bold text-gray-700">Column ${gIdx + 1}</h3>
+                        <div class="flex gap-2">
+                            <button onclick="addAction(${gIdx})" class="text-xs bg-white border border-gray-300 hover:bg-gray-100 text-gray-700 py-1.5 px-3 rounded">+ Action</button>
+                            <button onclick="removeActionGroup(${gIdx})" class="text-xs text-red-500 hover:text-red-700 p-2"><svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg></button>
+                        </div>
+                    </div>
+                    <div class="flex flex-col gap-3">
+                        ${group.map((action, aIdx) => `
+                            <div class="flex flex-col xl:flex-row gap-3 bg-white p-3 border border-gray-200 rounded items-start xl:items-center">
+                                <textarea placeholder="Action (e.g. mash)" oninput="updateAction(${gIdx}, ${aIdx}, 'text', this.value)" class="auto-resize flex-grow border border-gray-300 rounded px-2 py-2 text-sm focus:ring-2 focus:ring-green-400 focus:outline-none w-full xl:w-auto">${action.text}</textarea>
+                                
+                                <div class="flex items-center justify-between xl:justify-start gap-2 w-full xl:w-auto">
+                                    <div class="flex items-center gap-2 flex-grow xl:flex-grow-0">
+                                        <span class="text-xs text-gray-500 w-8">From:</span>
+                                        <select onchange="updateAction(${gIdx}, ${aIdx}, 'start', this.value)" class="flex-grow xl:flex-grow-0 text-sm border border-gray-300 rounded py-1.5 px-2 max-w-full xl:max-w-[120px] truncate">
+                                            ${getIngOptions(action.start)}
+                                        </select>
+                                    </div>
+                                    <div class="flex items-center gap-2 flex-grow xl:flex-grow-0">
+                                        <span class="text-xs text-gray-500 w-6">To:</span>
+                                        <select onchange="updateAction(${gIdx}, ${aIdx}, 'end', this.value)" class="flex-grow xl:flex-grow-0 text-sm border border-gray-300 rounded py-1.5 px-2 max-w-full xl:max-w-[120px] truncate">
+                                            ${getIngOptions(action.end)}
+                                        </select>
+                                    </div>
+                                    <button onclick="removeAction(${gIdx}, ${aIdx})" class="text-red-400 hover:text-red-600 p-2"><svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg></button>
+                                </div>
+                            </div>
+                        `).join('')}
+                        ${group.length === 0 ? '<div class="text-xs text-gray-400 italic text-center py-2">No actions in this column yet.</div>' : ''}
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // --- Tabs Logic ---
+        
+        // Mobile layout tabs
+        function switchMobileTab(tab) {
+            const editBtn = document.getElementById('mobileTabEdit');
+            const prevBtn = document.getElementById('mobileTabPreview');
+            const editor = document.getElementById('editorContainer');
+            const preview = document.getElementById('previewContainer');
+
+            if (tab === 'edit') {
+                editBtn.classList.add('active');
+                prevBtn.classList.remove('active');
+                
+                // Show editor, hide preview on mobile
+                editor.classList.remove('hidden');
+                editor.classList.add('flex');
+                
+                // The 'lg:block' class needs to be removed/added carefully to not break desktop behavior
+                preview.classList.add('hidden');
+                preview.classList.remove('block');
+                
+            } else {
+                prevBtn.classList.add('active');
+                editBtn.classList.remove('active');
+                
+                // Show preview, hide editor on mobile
+                preview.classList.remove('hidden');
+                preview.classList.add('block');
+                
+                editor.classList.add('hidden');
+                editor.classList.remove('flex');
+            }
+        }
+        
+        // Desktop Editor mode tabs
+        function switchTab(tab) {
+            document.getElementById('tabVisual').classList.remove('active');
+            document.getElementById('tabAdvanced').classList.remove('active');
+            document.getElementById('visualBuilderView').classList.add('hidden');
+            document.getElementById('advancedJsonView').classList.add('hidden');
+            document.getElementById('advancedJsonView').classList.remove('flex');
+            
+            if (tab === 'visual') {
+                document.getElementById('tabVisual').classList.add('active');
+                document.getElementById('visualBuilderView').classList.remove('hidden');
+                // When switching back to visual, rely on appState (updated live by advanced tab if valid)
+                renderVisualBuilder();
+            } else {
+                document.getElementById('tabAdvanced').classList.add('active');
+                document.getElementById('advancedJsonView').classList.remove('hidden');
+                document.getElementById('advancedJsonView').classList.add('flex');
+                document.getElementById('jsonEditor').value = JSON.stringify(appState, null, 4);
+                document.getElementById('jsonEditor').classList.remove('border-red-500');
+                document.getElementById('jsonError').classList.add('hidden');
+            }
+        }
+
+        function tryParseJson() {
+            try {
+                const parsed = JSON.parse(document.getElementById('jsonEditor').value);
+                appState = parsed;
+                document.getElementById('jsonEditor').classList.remove('border-red-500');
+                document.getElementById('jsonError').classList.add('hidden');
+                renderPreview();
+            } catch (e) {
+                document.getElementById('jsonEditor').classList.add('border-red-500');
+                const errorDiv = document.getElementById('jsonError');
+                errorDiv.textContent = 'JSON Error: ' + e.message;
+                errorDiv.classList.remove('hidden');
+            }
+        }
+
+        // --- Core Render Pipeline (DAG to Grid) ---
+
+        function renderPreview() {
+            const title = appState.title || 'Untitled Recipe';
+            const servings = appState.servings || '';
+            const maxCols = appState.actionGroups.length + 1; // +1 for ingredients
+
+            let html = `
+                <div class="recipe-title">
+                    ${title} <span class="recipe-servings">${servings}</span>
+                </div>
+                <table class="recipe-table">
+                    <tbody>
+            `;
+
+            // 1. Render Prep Steps
+            appState.prepSteps.forEach(step => {
+                html += `
+                    <tr class="prep-step">
+                        <td colspan="${maxCols}">${step.replace(/\n/g, '<br>')}</td>
+                    </tr>
+                `;
+            });
+
+            // 2. Generate and Render Grid
+            // If no ingredients, show empty state
+            if (appState.ingredients.length === 0) {
+                html += `<tr><td colspan="${maxCols}" class="text-gray-400 italic py-8">Add ingredients to build the grid.</td></tr>`;
+            } else {
+                for (let r = 0; r < appState.ingredients.length; r++) {
+                    html += `<tr>`;
+                    
+                    // Column 0: Ingredient
+                    html += `<td rowspan="1">${appState.ingredients[r].replace(/\n/g, '<br>')}</td>`;
+                    
+                    // Column 1+: Actions
+                    for (let c = 0; c < appState.actionGroups.length; c++) {
+                        const group = appState.actionGroups[c];
+                        
+                        // Helper to check if a specific row index is covered by any action in this group
+                        const isCellCovered = (rowIndex) => group.some(a => a.start <= rowIndex && a.end >= rowIndex);
+                        const actionStartingHere = group.find(a => a.start === r);
+                        
+                        if (isCellCovered(r)) {
+                            // If it's covered and it's the start, render the action block
+                            if (actionStartingHere) {
+                                const rowSpan = Math.max(1, actionStartingHere.end - actionStartingHere.start + 1);
+                                const text = actionStartingHere.text ? actionStartingHere.text.replace(/\n/g, '<br>') : '';
+                                html += `<td rowspan="${rowSpan}">${text}</td>`;
+                            }
+                        } else {
+                            // If it's NOT covered, check if it's the START of an empty block
+                            const startOfEmpty = r === 0 || isCellCovered(r - 1);
+                            
+                            if (startOfEmpty) {
+                                // Find where the next action starts to calculate empty rowspan
+                                const nextActions = group.filter(a => a.start > r).sort((a,b) => a.start - b.start);
+                                const endOfEmpty = nextActions.length > 0 ? nextActions[0].start : appState.ingredients.length;
+                                const rowSpan = endOfEmpty - r;
+                                
+                                html += `<td rowspan="${rowSpan}">&nbsp;</td>`;
+                            }
+                        }
+                    }
+                    html += `</tr>`;
+                }
+            }
+
+            html += `
+                    </tbody>
+                </table>
+            `;
+
+            document.getElementById('recipeOutput').innerHTML = html;
+            
+            // Sync JSON view if it's currently open (but valid)
+            if (!document.getElementById('advancedJsonView').classList.contains('hidden')) {
+                if(!document.getElementById('jsonEditor').classList.contains('border-red-500')) {
+                    document.getElementById('jsonEditor').value = JSON.stringify(appState, null, 4);
+                }
+            }
+        }
+
+        // Initialize
+        window.onload = init;
+    </script>
+</body>
+</html>
